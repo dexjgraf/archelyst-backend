@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     
     # Financial Modeling Prep (Primary)
     FMP_API_KEY: Optional[str] = Field(
-        default=None,
+        default="FTuE4nfBMo61nPgMHVu2Byb3zsZ4wpSH",
         description="Financial Modeling Prep API key"
     )
     FMP_BASE_URL: str = Field(
@@ -113,7 +113,7 @@ class Settings(BaseSettings):
     
     # Google AI
     GOOGLE_AI_API_KEY: Optional[str] = Field(
-        default=None,
+        default="AIzaSyBL5BNTYZkKU8T-jyL0GxoXZYG-dtG_viE",
         description="Google AI API key (optional)"
     )
     GOOGLE_AI_MODEL: str = Field(default="gemini-pro", description="Google AI model to use")
