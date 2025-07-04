@@ -8,7 +8,7 @@ import logging
 from typing import AsyncGenerator, Optional
 from contextlib import asynccontextmanager
 
-from sqlalchemy import MetaData, event
+from sqlalchemy import MetaData, event, text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
@@ -174,7 +174,7 @@ class DatabaseManager:
         
         try:
             async with self.engine.begin() as conn:
-                await conn.execute("SELECT 1")
+                await conn.execute(text("SELECT 1"))
             return True
         except Exception as e:
             logger.error(f"Database health check failed: {e}")
@@ -365,17 +365,23 @@ async def check_database_health() -> dict:
         # Check connection health
         health_info["connection_healthy"] = await db_manager.check_connection()
         
-        # Get pool information
-        pool = db_manager.engine.pool
-        health_info["pool_info"] = {
-            "size": pool.size(),
-            "checked_in": pool.checkedin(),
-            "checked_out": pool.checkedout(),
-            "invalidated": pool.invalidated(),
-            "overflow": pool.overflow()
-        }
+        # Get pool information (if available)
+        try:
+            pool = db_manager.engine.pool
+            if hasattr(pool, 'size'):
+                health_info["pool_info"] = {
+                    "size": pool.size(),
+                    "checked_in": pool.checkedin(),
+                    "checked_out": pool.checkedout(),
+                    "invalidated": pool.invalidated(),
+                    "overflow": pool.overflow()
+                }
+            else:
+                health_info["pool_info"] = {"type": "NullPool", "note": "AsyncPG handles pooling"}
+        except Exception as pool_error:
+            health_info["pool_info"] = {"error": str(pool_error)}
         
-        health_info["engine_disposed"] = db_manager.engine.closed
+        health_info["engine_disposed"] = getattr(db_manager.engine, 'closed', False)
         
     except Exception as e:
         logger.error(f"Error checking database health: {e}")
