@@ -1,0 +1,77 @@
+name: Auto-assign Issues and PRs
+
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
+
+jobs:
+  auto-assign:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Auto-assign issue
+      if: github.event_name == 'issues'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const issue = context.payload.issue;
+          const labels = issue.labels.map(label => label.name);
+          
+          // Auto-assign based on labels
+          let assignee = 'dexjgraf'; // Default assignee
+          
+          if (labels.includes('backend')) {
+            assignee = 'dexjgraf';
+          } else if (labels.includes('ai')) {
+            assignee = 'dexjgraf';
+          } else if (labels.includes('data')) {
+            assignee = 'dexjgraf';
+          }
+          
+          // Add to project board
+          await github.rest.issues.addAssignees({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: issue.number,
+            assignees: [assignee]
+          });
+          
+          // Add appropriate labels if not already present
+          const labelsToAdd = [];
+          if (!labels.includes('status: todo')) {
+            labelsToAdd.push('status: todo');
+          }
+          
+          if (labelsToAdd.length > 0) {
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: labelsToAdd
+            });
+          }
+    
+    - name: Auto-assign PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const pr = context.payload.pull_request;
+          
+          // Auto-assign PR to author
+          await github.rest.issues.addAssignees({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: pr.number,
+            assignees: [pr.user.login]
+          });
+          
+          // Add default labels
+          await github.rest.issues.addLabels({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: pr.number,
+            labels: ['status: review']
+          });

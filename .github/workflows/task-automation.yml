@@ -1,0 +1,163 @@
+name: Task Automation
+
+on:
+  issues:
+    types: [opened, closed, labeled, unlabeled]
+  pull_request:
+    types: [opened, closed, merged, converted_to_draft, ready_for_review]
+
+jobs:
+  update-task-status:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Update issue status
+      if: github.event_name == 'issues'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const issue = context.payload.issue;
+          const action = context.payload.action;
+          
+          // Map issue status based on labels and state
+          let statusLabel = '';
+          let labelsToRemove = [];
+          
+          if (action === 'closed') {
+            statusLabel = 'status: done';
+            labelsToRemove = ['status: todo', 'status: in-progress', 'status: review'];
+          } else if (action === 'labeled') {
+            const newLabel = context.payload.label.name;
+            if (newLabel === 'status: in-progress') {
+              labelsToRemove = ['status: todo', 'status: review', 'status: done'];
+            } else if (newLabel === 'status: review') {
+              labelsToRemove = ['status: todo', 'status: in-progress', 'status: done'];
+            }
+          }
+          
+          // Remove conflicting status labels
+          for (const label of labelsToRemove) {
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                name: label
+              });
+            } catch (error) {
+              console.log(`Label ${label} not found on issue`);
+            }
+          }
+          
+          // Add new status label
+          if (statusLabel) {
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: [statusLabel]
+            });
+          }
+          
+          // Add completion comment
+          if (action === 'closed' && issue.state === 'closed') {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: '✅ Task completed successfully! Moving to done status.'
+            });
+          }
+    
+    - name: Update PR status
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const pr = context.payload.pull_request;
+          const action = context.payload.action;
+          
+          let statusLabel = '';
+          let labelsToRemove = [];
+          
+          if (action === 'opened') {
+            statusLabel = 'status: review';
+            labelsToRemove = ['status: todo', 'status: in-progress', 'status: done'];
+          } else if (action === 'converted_to_draft') {
+            statusLabel = 'status: in-progress';
+            labelsToRemove = ['status: todo', 'status: review', 'status: done'];
+          } else if (action === 'ready_for_review') {
+            statusLabel = 'status: review';
+            labelsToRemove = ['status: todo', 'status: in-progress', 'status: done'];
+          } else if (action === 'closed' && pr.merged) {
+            statusLabel = 'status: done';
+            labelsToRemove = ['status: todo', 'status: in-progress', 'status: review'];
+          }
+          
+          // Remove conflicting labels
+          for (const label of labelsToRemove) {
+            try {
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                name: label
+              });
+            } catch (error) {
+              console.log(`Label ${label} not found on PR`);
+            }
+          }
+          
+          // Add new status label
+          if (statusLabel) {
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              labels: [statusLabel]
+            });
+          }
+
+  create-linked-issues:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    
+    steps:
+    - name: Create linked implementation issues
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const issue = context.payload.issue;
+          const title = issue.title;
+          const body = issue.body || '';
+          
+          // Check if this is a feature request that needs breakdown
+          if (title.toLowerCase().includes('feature:') || title.toLowerCase().includes('epic:')) {
+            const tasks = [
+              {
+                title: `Implementation: ${title.replace(/^(feature:|epic:)/i, '')}`,
+                body: `Implementation task for: #${issue.number}\n\n${body}`,
+                labels: ['type: implementation', 'status: todo', 'priority: medium']
+              },
+              {
+                title: `Testing: ${title.replace(/^(feature:|epic:)/i, '')}`,
+                body: `Testing task for: #${issue.number}\n\n- [ ] Unit tests\n- [ ] Integration tests\n- [ ] API tests`,
+                labels: ['type: testing', 'status: todo', 'priority: medium']
+              },
+              {
+                title: `Documentation: ${title.replace(/^(feature:|epic:)/i, '')}`,
+                body: `Documentation task for: #${issue.number}\n\n- [ ] API documentation\n- [ ] Code comments\n- [ ] README updates`,
+                labels: ['type: documentation', 'status: todo', 'priority: low']
+              }
+            ];
+            
+            for (const task of tasks) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: task.title,
+                body: task.body,
+                labels: task.labels
+              });
+            }
+          }
