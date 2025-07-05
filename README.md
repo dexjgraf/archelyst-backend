@@ -54,36 +54,29 @@ Archelyst Backend is a sophisticated financial data and analytics API built with
 
 ## 🔧 Quick Start
 
-### Prerequisites
-- Python 3.11+
-- Docker and Docker Compose
-- Redis
-- PostgreSQL
+### 🚀 Complete Setup Guide
 
-### Installation
+**👉 [Follow the Complete Getting Started Guide](GETTING_STARTED.md) 👈**
 
-1. Clone the repository:
+The getting started guide provides step-by-step instructions for setting up the complete development environment with all services (FastAPI, PostgreSQL, Redis, Neo4j, Celery).
+
+### ⚡ TL;DR - Super Quick Start
+
 ```bash
+# Clone and start everything
 git clone https://github.com/dexjgraf/archelyst-backend.git
 cd archelyst-backend
-```
-
-2. Set up environment variables:
-```bash
 cp .env.example .env
-# Edit .env with your API keys and configuration
-```
-
-3. Start with Docker Compose:
-```bash
 docker-compose up -d
+
+# Verify everything works
+./scripts/verify-setup.sh
+
+# Access the API
+open http://localhost:8000/docs
 ```
 
-4. Or run locally:
-```bash
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
+**Prerequisites**: Docker Desktop installed and 8GB+ RAM available.
 
 ## 🚦 API Documentation
 
@@ -141,10 +134,17 @@ pytest tests/ -v
 
 ## 📚 Documentation
 
-- [API Documentation](docs/api.md)
-- [Development Guide](docs/development.md)
-- [Deployment Guide](docs/deployment.md)
-- [Contributing Guidelines](CONTRIBUTING.md)
+### Setup Guides
+- **[🚀 Getting Started Guide](GETTING_STARTED.md)** - Complete step-by-step setup
+- **[📋 Quick Reference](QUICK_REFERENCE.md)** - Essential commands and URLs
+- **[🐳 Docker Setup Guide](DOCKER_SETUP.md)** - Detailed Docker configuration
+- **[📊 Neo4j Setup Guide](NEO4J_SETUP.md)** - Graph database configuration
+
+### Development
+- **[API Documentation](http://localhost:8000/docs)** - Interactive API docs (when running)
+- **[Development Guide](docs/development.md)** - Development workflows
+- **[Deployment Guide](docs/deployment.md)** - Production deployment
+- **[Contributing Guidelines](CONTRIBUTING.md)** - How to contribute
 
 ## 🤝 Contributing
 

@@ -1,0 +1,678 @@
+"""
+Market data Pydantic schemas.
+
+Contains request and response models for market data endpoints including
+market overview, indices, sectors, commodities, and forex data.
+"""
+
+from datetime import datetime, date
+from decimal import Decimal
+from enum import Enum
+from typing import Any, Dict, List, Optional, Union
+from pydantic import BaseModel, Field
+
+from .base import BaseResponse, DataProviderInfo, PaginatedResponse
+
+
+# ============================================================================
+# Enums and Constants
+# ============================================================================
+
+class MarketRegion(str, Enum):
+    """Market regions."""
+    US = "US"
+    EUROPE = "EUROPE"
+    ASIA = "ASIA"
+    AMERICAS = "AMERICAS"
+    GLOBAL = "GLOBAL"
+
+
+class IndexType(str, Enum):
+    """Types of market indices."""
+    BROAD_MARKET = "broad_market"
+    SECTOR = "sector"
+    COMMODITY = "commodity"
+    CURRENCY = "currency"
+    BOND = "bond"
+    VOLATILITY = "volatility"
+    CRYPTO = "crypto"
+
+
+class SectorCategory(str, Enum):
+    """Market sector categories."""
+    TECHNOLOGY = "Technology"
+    HEALTHCARE = "Healthcare"
+    FINANCIALS = "Financials"
+    CONSUMER_DISCRETIONARY = "Consumer Discretionary"
+    CONSUMER_STAPLES = "Consumer Staples"
+    INDUSTRIALS = "Industrials"
+    ENERGY = "Energy"
+    UTILITIES = "Utilities"
+    REAL_ESTATE = "Real Estate"
+    MATERIALS = "Materials"
+    COMMUNICATION_SERVICES = "Communication Services"
+
+
+class CommodityType(str, Enum):
+    """Types of commodities."""
+    PRECIOUS_METALS = "precious_metals"
+    ENERGY = "energy"
+    AGRICULTURE = "agriculture"
+    INDUSTRIAL_METALS = "industrial_metals"
+
+
+class CurrencyPair(str, Enum):
+    """Major currency pairs."""
+    EUR_USD = "EURUSD"
+    GBP_USD = "GBPUSD"
+    USD_JPY = "USDJPY"
+    USD_CHF = "USDCHF"
+    AUD_USD = "AUDUSD"
+    USD_CAD = "USDCAD"
+    NZD_USD = "NZDUSD"
+
+
+# ============================================================================
+# Market Overview Models
+# ============================================================================
+
+class MarketSummary(BaseModel):
+    """Market summary statistics."""
+    
+    total_market_cap: Optional[int] = Field(
+        None, 
+        description="Total market capitalization",
+        example=45000000000000
+    )
+    trading_volume: Optional[int] = Field(
+        None, 
+        description="Total trading volume",
+        example=500000000000
+    )
+    advancing_stocks: Optional[int] = Field(
+        None, 
+        description="Number of advancing stocks",
+        example=2847
+    )
+    declining_stocks: Optional[int] = Field(
+        None, 
+        description="Number of declining stocks",
+        example=1923
+    )
+    unchanged_stocks: Optional[int] = Field(
+        None, 
+        description="Number of unchanged stocks",
+        example=230
+    )
+    new_highs: Optional[int] = Field(
+        None, 
+        description="Number of new 52-week highs",
+        example=156
+    )
+    new_lows: Optional[int] = Field(
+        None, 
+        description="Number of new 52-week lows",
+        example=43
+    )
+    fear_greed_index: Optional[Decimal] = Field(
+        None, 
+        description="Fear & Greed Index (0-100)",
+        example=65.5,
+        ge=0,
+        le=100,
+    )
+
+
+class IndexData(BaseModel):
+    """Market index data."""
+    
+    symbol: str = Field(
+        ..., 
+        description="Index symbol",
+        example="^GSPC"
+    )
+    name: str = Field(
+        ..., 
+        description="Index name",
+        example="S&P 500"
+    )
+    value: Decimal = Field(
+        ..., 
+        description="Current index value",
+        example=4567.89,
+    )
+    change: Decimal = Field(
+        ..., 
+        description="Point change from previous close",
+        example=23.45,
+    )
+    change_percent: Decimal = Field(
+        ..., 
+        description="Percentage change from previous close",
+        example=0.52,
+    )
+    previous_close: Decimal = Field(
+        ..., 
+        description="Previous closing value",
+        example=4544.44,
+    )
+    day_high: Decimal = Field(
+        ..., 
+        description="Day's high value",
+        example=4578.23,
+    )
+    day_low: Decimal = Field(
+        ..., 
+        description="Day's low value",
+        example=4532.11,
+    )
+    week_52_high: Optional[Decimal] = Field(
+        None, 
+        description="52-week high",
+        example=4796.56,
+    )
+    week_52_low: Optional[Decimal] = Field(
+        None, 
+        description="52-week low",
+        example=3491.58,
+    )
+    index_type: IndexType = Field(
+        ..., 
+        description="Type of index",
+        example=IndexType.BROAD_MARKET
+    )
+    region: MarketRegion = Field(
+        ..., 
+        description="Market region",
+        example=MarketRegion.US
+    )
+    last_update: datetime = Field(
+        ..., 
+        description="Last update timestamp",
+        example="2024-07-04T16:00:00Z"
+    )
+
+
+class SectorPerformance(BaseModel):
+    """Sector performance data."""
+    
+    sector: SectorCategory = Field(
+        ..., 
+        description="Sector name",
+        example=SectorCategory.TECHNOLOGY
+    )
+    change_percent: Decimal = Field(
+        ..., 
+        description="Sector performance percentage",
+        example=1.23,
+    )
+    market_cap: Optional[int] = Field(
+        None, 
+        description="Total sector market cap",
+        example=12000000000000
+    )
+    volume: Optional[int] = Field(
+        None, 
+        description="Total sector volume",
+        example=25000000000
+    )
+    top_performers: List[str] = Field(
+        default=[], 
+        description="Top performing stocks in sector",
+        example=["AAPL", "MSFT", "GOOGL"]
+    )
+    worst_performers: List[str] = Field(
+        default=[], 
+        description="Worst performing stocks in sector",
+        example=["META", "NFLX", "TSLA"]
+    )
+
+
+class MarketOverview(BaseModel):
+    """Complete market overview data."""
+    
+    date: date = Field(
+        ..., 
+        description="Market date"
+    )
+    market_status: str = Field(
+        ..., 
+        description="Current market status",
+        example="OPEN"
+    )
+    summary: MarketSummary = Field(
+        ..., 
+        description="Market summary statistics"
+    )
+    major_indices: List[IndexData] = Field(
+        ..., 
+        description="Major market indices"
+    )
+    sector_performance: List[SectorPerformance] = Field(
+        ..., 
+        description="Sector performance data"
+    )
+    market_movers: Dict[str, List[str]] = Field(
+        default={}, 
+        description="Market movers (gainers, losers, most active)",
+        example={
+            "top_gainers": ["AAPL", "MSFT", "GOOGL"],
+            "top_losers": ["META", "NFLX", "TSLA"],
+            "most_active": ["SPY", "QQQ", "AMZN"]
+        }
+    )
+    economic_indicators: Dict[str, Any] = Field(
+        default={}, 
+        description="Key economic indicators",
+        example={
+            "vix": 18.45,
+            "dxy": 104.23,
+            "ten_year_yield": 4.25
+        }
+    )
+
+
+class MarketOverviewResponse(BaseResponse[MarketOverview]):
+    """Market overview API response."""
+    
+    provider: Optional[DataProviderInfo] = Field(
+        None, 
+        description="Data provider information"
+    )
+
+
+# ============================================================================
+# Indices Models
+# ============================================================================
+
+class IndicesListData(BaseModel):
+    """List of market indices."""
+    
+    indices: List[IndexData] = Field(
+        ..., 
+        description="List of market indices"
+    )
+    region: Optional[MarketRegion] = Field(
+        None, 
+        description="Filtered region",
+        example=MarketRegion.US
+    )
+    index_type: Optional[IndexType] = Field(
+        None, 
+        description="Filtered index type",
+        example=IndexType.BROAD_MARKET
+    )
+
+
+class IndicesResponse(BaseResponse[IndicesListData]):
+    """Indices list API response."""
+    
+    provider: Optional[DataProviderInfo] = Field(
+        None, 
+        description="Data provider information"
+    )
+
+
+# ============================================================================
+# Commodities Models
+# ============================================================================
+
+class CommodityData(BaseModel):
+    """Commodity price data."""
+    
+    symbol: str = Field(
+        ..., 
+        description="Commodity symbol",
+        example="GC=F"
+    )
+    name: str = Field(
+        ..., 
+        description="Commodity name",
+        example="Gold"
+    )
+    price: Decimal = Field(
+        ..., 
+        description="Current price",
+        example=2034.50,
+    )
+    change: Decimal = Field(
+        ..., 
+        description="Price change",
+        example=12.30,
+    )
+    change_percent: Decimal = Field(
+        ..., 
+        description="Percentage change",
+        example=0.61,
+    )
+    unit: str = Field(
+        ..., 
+        description="Price unit",
+        example="USD/oz"
+    )
+    commodity_type: CommodityType = Field(
+        ..., 
+        description="Type of commodity",
+        example=CommodityType.PRECIOUS_METALS
+    )
+    last_update: datetime = Field(
+        ..., 
+        description="Last update timestamp",
+        example="2024-07-04T16:00:00Z"
+    )
+
+
+class CommoditiesData(BaseModel):
+    """Commodities market data."""
+    
+    commodities: List[CommodityData] = Field(
+        ..., 
+        description="List of commodity prices"
+    )
+    commodity_type: Optional[CommodityType] = Field(
+        None, 
+        description="Filtered commodity type"
+    )
+
+
+class CommoditiesResponse(BaseResponse[CommoditiesData]):
+    """Commodities API response."""
+    
+    provider: Optional[DataProviderInfo] = Field(
+        None, 
+        description="Data provider information"
+    )
+
+
+# ============================================================================
+# Forex Models
+# ============================================================================
+
+class CurrencyRate(BaseModel):
+    """Currency exchange rate data."""
+    
+    pair: str = Field(
+        ..., 
+        description="Currency pair",
+        example="EURUSD"
+    )
+    rate: Decimal = Field(
+        ..., 
+        description="Exchange rate",
+        example=1.0847,
+    )
+    change: Decimal = Field(
+        ..., 
+        description="Rate change",
+        example=0.0023,
+    )
+    change_percent: Decimal = Field(
+        ..., 
+        description="Percentage change",
+        example=0.21,
+    )
+    bid: Optional[Decimal] = Field(
+        None, 
+        description="Bid price",
+        example=1.0846,
+    )
+    ask: Optional[Decimal] = Field(
+        None, 
+        description="Ask price",
+        example=1.0848,
+    )
+    high_24h: Optional[Decimal] = Field(
+        None, 
+        description="24-hour high",
+        example=1.0867,
+    )
+    low_24h: Optional[Decimal] = Field(
+        None, 
+        description="24-hour low",
+        example=1.0821,
+    )
+    last_update: datetime = Field(
+        ..., 
+        description="Last update timestamp",
+        example="2024-07-04T16:00:00Z"
+    )
+
+
+class ForexData(BaseModel):
+    """Forex market data."""
+    
+    rates: List[CurrencyRate] = Field(
+        ..., 
+        description="Currency exchange rates"
+    )
+    base_currency: str = Field(
+        "USD", 
+        description="Base currency for rates",
+        example="USD"
+    )
+
+
+class ForexResponse(BaseResponse[ForexData]):
+    """Forex API response."""
+    
+    provider: Optional[DataProviderInfo] = Field(
+        None, 
+        description="Data provider information"
+    )
+
+
+# ============================================================================
+# Crypto Models
+# ============================================================================
+
+class CryptoData(BaseModel):
+    """Cryptocurrency data."""
+    
+    symbol: str = Field(
+        ..., 
+        description="Crypto symbol",
+        example="BTC"
+    )
+    name: str = Field(
+        ..., 
+        description="Cryptocurrency name",
+        example="Bitcoin"
+    )
+    price: Decimal = Field(
+        ..., 
+        description="Current price in USD",
+        example=43567.89,
+    )
+    change_24h: Decimal = Field(
+        ..., 
+        description="24-hour price change",
+        example=1234.56,
+    )
+    change_percent_24h: Decimal = Field(
+        ..., 
+        description="24-hour percentage change",
+        example=2.91,
+    )
+    market_cap: Optional[int] = Field(
+        None, 
+        description="Market capitalization",
+        example=850000000000
+    )
+    volume_24h: Optional[int] = Field(
+        None, 
+        description="24-hour trading volume",
+        example=25000000000
+    )
+    circulating_supply: Optional[Decimal] = Field(
+        None, 
+        description="Circulating supply",
+        example=19500000.0,
+    )
+    max_supply: Optional[Decimal] = Field(
+        None, 
+        description="Maximum supply",
+        example=21000000.0,
+    )
+    market_cap_rank: Optional[int] = Field(
+        None, 
+        description="Market cap ranking",
+        example=1
+    )
+    last_update: datetime = Field(
+        ..., 
+        description="Last update timestamp",
+        example="2024-07-04T16:00:00Z"
+    )
+
+
+class CryptoMarketData(BaseModel):
+    """Cryptocurrency market data."""
+    
+    cryptocurrencies: List[CryptoData] = Field(
+        ..., 
+        description="List of cryptocurrency data"
+    )
+    total_market_cap: Optional[int] = Field(
+        None, 
+        description="Total crypto market cap",
+        example=1750000000000
+    )
+    total_volume_24h: Optional[int] = Field(
+        None, 
+        description="Total 24h volume",
+        example=95000000000
+    )
+    bitcoin_dominance: Optional[Decimal] = Field(
+        None, 
+        description="Bitcoin market dominance percentage",
+        example=48.5,
+    )
+
+
+class CryptoResponse(BaseResponse[CryptoMarketData]):
+    """Crypto market API response."""
+    
+    provider: Optional[DataProviderInfo] = Field(
+        None, 
+        description="Data provider information"
+    )
+
+
+# ============================================================================
+# Market Movers Models
+# ============================================================================
+
+class MarketMover(BaseModel):
+    """Market mover data."""
+    
+    symbol: str = Field(
+        ..., 
+        description="Security symbol",
+        example="AAPL"
+    )
+    name: str = Field(
+        ..., 
+        description="Security name",
+        example="Apple Inc."
+    )
+    price: Decimal = Field(
+        ..., 
+        description="Current price",
+        example=150.25,
+    )
+    change: Decimal = Field(
+        ..., 
+        description="Price change",
+        example=5.47,
+    )
+    change_percent: Decimal = Field(
+        ..., 
+        description="Percentage change",
+        example=3.78,
+    )
+    volume: int = Field(
+        ..., 
+        description="Trading volume",
+        example=125000000,
+        ge=0
+    )
+    market_cap: Optional[int] = Field(
+        None, 
+        description="Market capitalization",
+        example=2500000000000
+    )
+
+
+class MarketMoversData(BaseModel):
+    """Market movers data."""
+    
+    gainers: List[MarketMover] = Field(
+        ..., 
+        description="Top gaining securities"
+    )
+    losers: List[MarketMover] = Field(
+        ..., 
+        description="Top losing securities"
+    )
+    most_active: List[MarketMover] = Field(
+        ..., 
+        description="Most actively traded securities"
+    )
+    date: date = Field(
+        ..., 
+        description="Data date"
+    )
+
+
+class MarketMoversResponse(BaseResponse[MarketMoversData]):
+    """Market movers API response."""
+    
+    provider: Optional[DataProviderInfo] = Field(
+        None, 
+        description="Data provider information"
+    )
+
+
+# ============================================================================
+# Export all models
+# ============================================================================
+
+__all__ = [
+    # Enums
+    "MarketRegion",
+    "IndexType",
+    "SectorCategory", 
+    "CommodityType",
+    "CurrencyPair",
+    
+    # Market overview models
+    "MarketSummary",
+    "IndexData",
+    "SectorPerformance",
+    "MarketOverview",
+    "MarketOverviewResponse",
+    
+    # Indices models
+    "IndicesListData",
+    "IndicesResponse",
+    
+    # Commodities models
+    "CommodityData",
+    "CommoditiesData",
+    "CommoditiesResponse",
+    
+    # Forex models
+    "CurrencyRate",
+    "ForexData",
+    "ForexResponse",
+    
+    # Crypto models
+    "CryptoData",
+    "CryptoMarketData",
+    "CryptoResponse",
+    
+    # Market movers models
+    "MarketMover",
+    "MarketMoversData",
+    "MarketMoversResponse"
+]
