@@ -264,7 +264,7 @@ class SortParams(BaseModel):
         "asc", 
         description="Sort direction",
         example="desc",
-        regex="^(asc|desc)$"
+        pattern="^(asc|desc)$"
     )
 
 

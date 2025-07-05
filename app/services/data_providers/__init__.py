@@ -7,6 +7,7 @@ and financial information from various sources (FMP, Yahoo Finance, Alpha Vantag
 
 from .base import DataProvider, ProviderResponse, ProviderHealth
 from .fmp import FMPProvider
+from .yfinance import YahooFinanceProvider
 from .factory import DataProviderFactory
 from .config import BaseProviderConfig
 
@@ -15,6 +16,7 @@ __all__ = [
     "ProviderResponse", 
     "ProviderHealth",
     "FMPProvider",
+    "YahooFinanceProvider",
     "DataProviderFactory",
     "BaseProviderConfig"
 ]

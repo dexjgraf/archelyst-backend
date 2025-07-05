@@ -26,21 +26,21 @@ class FMPProvider(DataProvider):
         self.cache_service = cache_service
         self.rate_limiter = rate_limiter
         self.api_key = settings.fmp_api_key
-        self.base_url = "https://financialmodelingprep.com/api/v3"
+        self.base_url = "https://financialmodelingprep.com/stable"
         self.session = None
         self._last_error = None
         self._retry_count = 0
         self._max_retries = 3
         self._backoff_base = 2
         
-        # FMP-specific configuration
+        # FMP-specific configuration (updated to stable API endpoints)
         self.endpoints = {
             "quote": "/quote",
-            "profile": "/profile",
-            "historical": "/historical-price-full",
-            "search": "/search",
+            "profile": "/profile", 
+            "historical": "/historical-price-eod/full",
+            "search": "/search-symbol",
             "crypto": "/quote",
-            "market_overview": "/quote/SPY,QQQ,DIA,BTC-USD,ETH-USD"
+            "market_overview": "/quote"  # Will append symbols as parameters
         }
         
         # Rate limiting configuration
@@ -153,14 +153,15 @@ class FMPProvider(DataProvider):
                         await self._handle_rate_limit_response(response)
                         
                     elif response.status == 401:
-                        # Invalid API key
+                        # Invalid API key - don't retry
                         logger.error(
                             "FMP API authentication failed",
                             endpoint=endpoint,
                             status=response.status
                         )
-                        # Authentication error - handled by base class
-                        raise Exception("FMP API authentication failed - check API key")
+                        # Mark authentication error and break out of retry loop
+                        self._auth_error = True
+                        break
                         
                     else:
                         logger.warning(
@@ -197,9 +198,16 @@ class FMPProvider(DataProvider):
                 )
                 await asyncio.sleep(backoff_time)
         
-        # All retries failed
+        # All retries failed or authentication error
         self._retry_count += 1
-        error_msg = f"FMP API request failed after {self._max_retries + 1} attempts"
+        
+        # Check if it was an authentication error
+        if hasattr(self, '_auth_error'):
+            error_msg = "FMP API authentication failed - check API key"
+            delattr(self, '_auth_error')
+        else:
+            error_msg = f"FMP API request failed after {self._max_retries + 1} attempts"
+        
         self._last_error = error_msg
         
         logger.error(
@@ -232,7 +240,7 @@ class FMPProvider(DataProvider):
     
     def _is_valid_response(self, data: Any, endpoint: str) -> bool:
         """Validate API response format."""
-        if not data:
+        if data is None:
             return False
         
         # Check for error messages
@@ -290,7 +298,7 @@ class FMPProvider(DataProvider):
             "pe_ratio": quote.get("pe"),
             "timestamp": quote.get("timestamp"),
             "provider": "fmp",
-            "last_updated": datetime.utcnow().isoformat()
+            "last_updated": datetime.now().isoformat()
         }
     
     def _standardize_profile_data(self, raw_data: List[Dict]) -> Dict[str, Any]:
@@ -321,7 +329,7 @@ class FMPProvider(DataProvider):
                 "country": profile.get("country", "")
             },
             "provider": "fmp",
-            "last_updated": datetime.utcnow().isoformat()
+            "last_updated": datetime.now().isoformat()
         }
     
     # Implement required DataProvider methods
@@ -338,7 +346,7 @@ class FMPProvider(DataProvider):
                 success=True,
                 data=standardized_data,
                 provider="fmp",
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(),
                 metadata={"cached": False}
             )
             
@@ -348,7 +356,7 @@ class FMPProvider(DataProvider):
                 success=False,
                 data={},
                 provider="fmp",
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(),
                 error=str(e),
                 metadata={"cached": False}
             )
@@ -365,7 +373,7 @@ class FMPProvider(DataProvider):
                 success=True,
                 data=standardized_data,
                 provider="fmp",
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(),
                 metadata={"cached": False}
             )
             
@@ -375,7 +383,7 @@ class FMPProvider(DataProvider):
                 success=False,
                 data={},
                 provider="fmp",
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(),
                 error=str(e),
                 metadata={"cached": False}
             )
@@ -412,14 +420,14 @@ class FMPProvider(DataProvider):
                 "interval": interval,
                 "data": historical_data,
                 "provider": "fmp",
-                "last_updated": datetime.utcnow().isoformat()
+                "last_updated": datetime.now().isoformat()
             }
             
             return ProviderResponse(
                 success=True,
                 data=standardized_data,
                 provider="fmp",
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(),
                 metadata={"cached": False}
             )
             
@@ -429,7 +437,7 @@ class FMPProvider(DataProvider):
                 success=False,
                 data={},
                 provider="fmp",
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(),
                 error=str(e),
                 metadata={"cached": False}
             )
@@ -463,14 +471,14 @@ class FMPProvider(DataProvider):
                 "results": results,
                 "count": len(results),
                 "provider": "fmp",
-                "last_updated": datetime.utcnow().isoformat()
+                "last_updated": datetime.now().isoformat()
             }
             
             return ProviderResponse(
                 success=True,
                 data=standardized_data,
                 provider="fmp",
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(),
                 metadata={"cached": False}
             )
             
@@ -480,7 +488,7 @@ class FMPProvider(DataProvider):
                 success=False,
                 data={},
                 provider="fmp",
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(),
                 error=str(e),
                 metadata={"cached": False}
             )
@@ -490,8 +498,8 @@ class FMPProvider(DataProvider):
         try:
             logger.info("Fetching crypto quote from FMP", symbol=symbol)
             
-            # FMP uses different symbol format for crypto
-            crypto_symbol = f"{symbol}-USD" if not symbol.endswith("-USD") else symbol
+            # FMP stable API uses different format for crypto (e.g., BTCUSD instead of BTC-USD)
+            crypto_symbol = f"{symbol}USD" if not symbol.endswith("USD") else symbol
             
             data = await self._make_request(self.endpoints["crypto"], {"symbol": crypto_symbol})
             standardized_data = self._standardize_quote_data(data)
@@ -503,7 +511,7 @@ class FMPProvider(DataProvider):
                 success=True,
                 data=standardized_data,
                 provider="fmp",
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(),
                 metadata={"cached": False}
             )
             
@@ -513,7 +521,7 @@ class FMPProvider(DataProvider):
                 success=False,
                 data={},
                 provider="fmp",
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(),
                 error=str(e),
                 metadata={"cached": False}
             )
@@ -523,13 +531,15 @@ class FMPProvider(DataProvider):
         try:
             logger.info("Fetching market overview from FMP")
             
-            data = await self._make_request(self.endpoints["market_overview"])
+            # Get quotes for major indices and crypto using the stable API format
+            symbols = "SPY,QQQ,DIA,BTCUSD,ETHUSD"  # Updated crypto format for stable API
+            data = await self._make_request(self.endpoints["market_overview"], {"symbol": symbols})
             
             # Standardize market overview
             overview = {
                 "indices": [],
                 "crypto": [],
-                "last_updated": datetime.utcnow().isoformat(),
+                "last_updated": datetime.now().isoformat(),
                 "provider": "fmp"
             }
             
@@ -539,16 +549,15 @@ class FMPProvider(DataProvider):
                 
                 if symbol in ["SPY", "QQQ", "DIA"]:
                     overview["indices"].append(standardized_item)
-                elif symbol.endswith("-USD"):
+                elif symbol in ["BTCUSD", "ETHUSD"] or symbol.endswith("USD"):
                     overview["crypto"].append(standardized_item)
             
             return ProviderResponse(
                 success=True,
                 data=overview,
                 provider="fmp",
-                timestamp=datetime.utcnow(),
-                cached=False,
-                error=None
+                timestamp=datetime.now(),
+                metadata={"cached": False}
             )
             
         except Exception as e:
@@ -557,7 +566,7 @@ class FMPProvider(DataProvider):
                 success=False,
                 data={},
                 provider="fmp",
-                timestamp=datetime.utcnow(),
+                timestamp=datetime.now(),
                 error=str(e),
                 metadata={"cached": False}
             )
